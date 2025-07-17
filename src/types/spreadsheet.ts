@@ -10,6 +10,7 @@ export interface Cell {
 export interface CellStyle {
   bold?: boolean;
   italic?: boolean;
+  underline?: boolean;
   fontSize?: number;
   fontColor?: string;
   backgroundColor?: string;

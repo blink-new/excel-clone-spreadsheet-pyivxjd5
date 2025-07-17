@@ -52,6 +52,21 @@ export const evaluateFormula = (formula: string, cells: { [key: string]: Cell })
     return evaluateCount(range, cells).toString();
   }
   
+  if (expression.startsWith('MAX(')) {
+    const range = expression.slice(4, -1);
+    return evaluateMax(range, cells).toString();
+  }
+  
+  if (expression.startsWith('MIN(')) {
+    const range = expression.slice(4, -1);
+    return evaluateMin(range, cells).toString();
+  }
+  
+  if (expression.startsWith('IF(')) {
+    const args = expression.slice(3, -1);
+    return evaluateIf(args, cells);
+  }
+  
   // Handle cell references
   const cellRefRegex = /[A-Z]+\d+/g;
   let result = expression;
@@ -121,6 +136,75 @@ const evaluateCount = (range: string, cells: { [key: string]: Cell }): number =>
   });
   
   return count;
+};
+
+const evaluateMax = (range: string, cells: { [key: string]: Cell }): number => {
+  const cellRefs = parseRange(range);
+  let max = -Infinity;
+  let hasValue = false;
+  
+  cellRefs.forEach(cellRef => {
+    const cell = cells[cellRef];
+    if (cell) {
+      const value = cell.formula ? evaluateFormula(cell.formula, cells) : cell.value;
+      const num = parseFloat(value);
+      if (!isNaN(num)) {
+        max = Math.max(max, num);
+        hasValue = true;
+      }
+    }
+  });
+  
+  return hasValue ? max : 0;
+};
+
+const evaluateMin = (range: string, cells: { [key: string]: Cell }): number => {
+  const cellRefs = parseRange(range);
+  let min = Infinity;
+  let hasValue = false;
+  
+  cellRefs.forEach(cellRef => {
+    const cell = cells[cellRef];
+    if (cell) {
+      const value = cell.formula ? evaluateFormula(cell.formula, cells) : cell.value;
+      const num = parseFloat(value);
+      if (!isNaN(num)) {
+        min = Math.min(min, num);
+        hasValue = true;
+      }
+    }
+  });
+  
+  return hasValue ? min : 0;
+};
+
+const evaluateIf = (args: string, cells: { [key: string]: Cell }): string => {
+  try {
+    // Simple IF function: IF(condition, value_if_true, value_if_false)
+    const parts = args.split(',').map(part => part.trim());
+    if (parts.length !== 3) return '#ERROR!';
+    
+    const [condition, trueValue, falseValue] = parts;
+    
+    // Replace cell references in condition
+    const cellRefRegex = /[A-Z]+\d+/g;
+    let evaluatedCondition = condition;
+    const matches = condition.match(cellRefRegex);
+    
+    if (matches) {
+      matches.forEach(cellRef => {
+        const cell = cells[cellRef];
+        const value = cell ? (cell.formula ? evaluateFormula(cell.formula, cells) : cell.value) : '0';
+        evaluatedCondition = evaluatedCondition.replace(cellRef, value || '0');
+      });
+    }
+    
+    // Evaluate condition
+    const result = eval(evaluatedCondition);
+    return result ? trueValue.replace(/"/g, '') : falseValue.replace(/"/g, '');
+  } catch {
+    return '#ERROR!';
+  }
 };
 
 const parseRange = (range: string): string[] => {

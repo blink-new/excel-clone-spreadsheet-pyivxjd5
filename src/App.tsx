@@ -8,7 +8,7 @@ import { SheetTabs } from './components/SheetTabs';
 import { StatusBar } from './components/StatusBar';
 import { Cell, Selection, SpreadsheetState, RibbonTab } from './types/spreadsheet';
 import { getCellId, evaluateFormula } from './utils/spreadsheet';
-import toast from 'react-hot-toast';
+import { Toaster, toast } from 'react-hot-toast';
 
 const initialState: SpreadsheetState = {
   cells: {},
@@ -31,6 +31,8 @@ function App() {
   const [activeTab, setActiveTab] = useState<RibbonTab>('Home');
   const [sheets, setSheets] = useState(initialSheets);
   const [formulaBarValue, setFormulaBarValue] = useState('');
+  const [clipboard, setClipboard] = useState<{ cells: Cell[]; selection: Selection } | null>(null);
+  const [fontSize, setFontSize] = useState(11);
 
   // Update formula bar when active cell changes
   useEffect(() => {
@@ -197,6 +199,36 @@ function App() {
     });
   }, [state.activeCell, saveToHistory]);
 
+  const handleFormatUnderline = useCallback(() => {
+    if (!state.activeCell) return;
+    
+    setState(prevState => {
+      const cellId = getCellId(state.activeCell!.row, state.activeCell!.col);
+      const cell = prevState.cells[cellId] || {
+        id: cellId,
+        value: '',
+        row: state.activeCell!.row,
+        col: state.activeCell!.col
+      };
+      
+      const newCells = {
+        ...prevState.cells,
+        [cellId]: {
+          ...cell,
+          style: {
+            ...cell.style,
+            underline: !cell.style?.underline
+          }
+        }
+      };
+      
+      return saveToHistory({
+        ...prevState,
+        cells: newCells
+      });
+    });
+  }, [state.activeCell, saveToHistory]);
+
   const handleAlign = useCallback((alignment: 'left' | 'center' | 'right') => {
     if (!state.activeCell) return;
     
@@ -226,6 +258,143 @@ function App() {
       });
     });
   }, [state.activeCell, saveToHistory]);
+
+  const handleFontSizeChange = useCallback((delta: number) => {
+    if (!state.activeCell) return;
+    
+    const newFontSize = Math.max(8, Math.min(72, fontSize + delta));
+    setFontSize(newFontSize);
+    
+    setState(prevState => {
+      const cellId = getCellId(state.activeCell!.row, state.activeCell!.col);
+      const cell = prevState.cells[cellId] || {
+        id: cellId,
+        value: '',
+        row: state.activeCell!.row,
+        col: state.activeCell!.col
+      };
+      
+      const newCells = {
+        ...prevState.cells,
+        [cellId]: {
+          ...cell,
+          style: {
+            ...cell.style,
+            fontSize: newFontSize
+          }
+        }
+      };
+      
+      return saveToHistory({
+        ...prevState,
+        cells: newCells
+      });
+    });
+  }, [state.activeCell, fontSize, saveToHistory]);
+
+  const handleCopy = useCallback(() => {
+    if (!state.selection) return;
+    
+    const copiedCells: Cell[] = [];
+    for (let row = state.selection.startRow; row <= state.selection.endRow; row++) {
+      for (let col = state.selection.startCol; col <= state.selection.endCol; col++) {
+        const cellId = getCellId(row, col);
+        const cell = state.cells[cellId];
+        if (cell) {
+          copiedCells.push({ ...cell });
+        }
+      }
+    }
+    
+    setClipboard({ cells: copiedCells, selection: state.selection });
+    toast.success('Copied to clipboard');
+  }, [state.selection, state.cells]);
+
+  const handlePaste = useCallback(() => {
+    if (!clipboard || !state.activeCell) return;
+    
+    setState(prevState => {
+      const newCells = { ...prevState.cells };
+      const offsetRow = state.activeCell!.row - clipboard.selection.startRow;
+      const offsetCol = state.activeCell!.col - clipboard.selection.startCol;
+      
+      clipboard.cells.forEach(cell => {
+        const newRow = cell.row + offsetRow;
+        const newCol = cell.col + offsetCol;
+        const newCellId = getCellId(newRow, newCol);
+        
+        newCells[newCellId] = {
+          ...cell,
+          id: newCellId,
+          row: newRow,
+          col: newCol
+        };
+      });
+      
+      return saveToHistory({
+        ...prevState,
+        cells: newCells
+      });
+    });
+    
+    toast.success('Pasted from clipboard');
+  }, [clipboard, state.activeCell, saveToHistory]);
+
+  const handleCut = useCallback(() => {
+    if (!state.selection) return;
+    
+    const copiedCells: Cell[] = [];
+    for (let row = state.selection.startRow; row <= state.selection.endRow; row++) {
+      for (let col = state.selection.startCol; col <= state.selection.endCol; col++) {
+        const cellId = getCellId(row, col);
+        const cell = state.cells[cellId];
+        if (cell) {
+          copiedCells.push({ ...cell });
+        }
+      }
+    }
+    
+    setClipboard({ cells: copiedCells, selection: state.selection });
+    
+    // Delete the cut cells
+    setState(prevState => {
+      const newCells = { ...prevState.cells };
+      for (let row = state.selection!.startRow; row <= state.selection!.endRow; row++) {
+        for (let col = state.selection!.startCol; col <= state.selection!.endCol; col++) {
+          const cellId = getCellId(row, col);
+          delete newCells[cellId];
+        }
+      }
+      
+      return saveToHistory({
+        ...prevState,
+        cells: newCells
+      });
+    });
+    
+    toast.success('Cut to clipboard');
+  }, [state.selection, state.cells, saveToHistory]);
+
+  const handleDelete = useCallback(() => {
+    if (!state.selection) return;
+    
+    setState(prevState => {
+      const newCells = { ...prevState.cells };
+      for (let row = state.selection!.startRow; row <= state.selection!.endRow; row++) {
+        for (let col = state.selection!.startCol; col <= state.selection!.endCol; col++) {
+          const cellId = getCellId(row, col);
+          delete newCells[cellId];
+        }
+      }
+      
+      return saveToHistory({
+        ...prevState,
+        cells: newCells
+      });
+    });
+    
+    toast.success('Deleted selected cells');
+  }, [state.selection, saveToHistory]);
 
   const handleSheetChange = useCallback((sheetId: string) => {
     setSheets(prevSheets => 
@@ -321,6 +490,59 @@ function App() {
     }
   }, []);
 
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case 's':
+            e.preventDefault();
+            handleSave();
+            break;
+          case 'z':
+            e.preventDefault();
+            if (e.shiftKey) {
+              handleRedo();
+            } else {
+              handleUndo();
+            }
+            break;
+          case 'y':
+            e.preventDefault();
+            handleRedo();
+            break;
+          case 'c':
+            e.preventDefault();
+            handleCopy();
+            break;
+          case 'v':
+            e.preventDefault();
+            handlePaste();
+            break;
+          case 'x':
+            e.preventDefault();
+            handleCut();
+            break;
+          case 'b':
+            e.preventDefault();
+            handleFormatBold();
+            break;
+          case 'i':
+            e.preventDefault();
+            handleFormatItalic();
+            break;
+          case 'u':
+            e.preventDefault();
+            handleFormatUnderline();
+            break;
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleSave, handleUndo, handleRedo, handleCopy, handlePaste, handleCut, handleFormatBold, handleFormatItalic, handleFormatUnderline]);
+
   return (
     <div className="h-screen flex flex-col bg-white font-sans">
       <TitleBar />
@@ -338,12 +560,15 @@ function App() {
         onTabChange={setActiveTab}
         onFormatBold={handleFormatBold}
         onFormatItalic={handleFormatItalic}
-        onFormatUnderline={() => {}} // TODO: Implement
+        onFormatUnderline={handleFormatUnderline}
         onAlignLeft={() => handleAlign('left')}
         onAlignCenter={() => handleAlign('center')}
         onAlignRight={() => handleAlign('right')}
-        onFontSizeIncrease={() => {}} // TODO: Implement
-        onFontSizeDecrease={() => {}} // TODO: Implement
+        onFontSizeIncrease={() => handleFontSizeChange(1)}
+        onFontSizeDecrease={() => handleFontSizeChange(-1)}
+        fontSize={fontSize}
+        onCopy={handleCopy}
+        onPaste={handlePaste}
       />
       
       <FormulaBar
@@ -373,6 +598,8 @@ function App() {
       />
       
       <StatusBar {...stats} />
+      
+      <Toaster position="bottom-right" />
     </div>
   );
 }

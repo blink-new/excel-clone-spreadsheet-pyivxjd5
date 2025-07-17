@@ -79,10 +79,27 @@ module.exports = {
   				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
+  			},
+  			excel: {
+  				green: 'hsl(var(--excel-green))',
+  				blue: 'hsl(var(--excel-blue))',
+  				gray: {
+  					50: 'hsl(var(--excel-gray-50))',
+  					100: 'hsl(var(--excel-gray-100))',
+  					200: 'hsl(var(--excel-gray-200))',
+  					300: 'hsl(var(--excel-gray-300))',
+  					400: 'hsl(var(--excel-gray-400))',
+  					500: 'hsl(var(--excel-gray-500))',
+  					600: 'hsl(var(--excel-gray-600))',
+  					700: 'hsl(var(--excel-gray-700))',
+  					800: 'hsl(var(--excel-gray-800))',
+  					900: 'hsl(var(--excel-gray-900))'
+  				}
   			}
   		},
   		fontFamily: {
   			sans: [
+  				'Segoe UI',
   				'Inter var',
   				'sans-serif'
   			]

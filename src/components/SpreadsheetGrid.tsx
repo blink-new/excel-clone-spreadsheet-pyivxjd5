@@ -61,6 +61,7 @@ export const SpreadsheetGrid = ({
     if (cell?.style) {
       if (cell.style.bold) style.fontWeight = 'bold';
       if (cell.style.italic) style.fontStyle = 'italic';
+      if (cell.style.underline) style.textDecoration = 'underline';
       if (cell.style.fontSize) style.fontSize = `${cell.style.fontSize}px`;
       if (cell.style.fontColor) style.color = cell.style.fontColor;
       if (cell.style.backgroundColor) style.backgroundColor = cell.style.backgroundColor;
